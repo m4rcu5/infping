@@ -1,4 +1,9 @@
 # infping
-Parse fping output, store result in influxdb 0.9
+Parse fping output, store result in influxdb
 
-See blog post for more info https://hveem.no/visualizing-latency-variance-with-grafana
+# grafana
+Render graphs from influxdb in "SmokePing Style"
+Grafana Dashboard: https://grafana.com/dashboards/3429
+
+# Build
+Comming soon
