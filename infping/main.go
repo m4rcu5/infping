@@ -33,6 +33,8 @@ func slashSplitter(c rune) bool {
 
 type host_map struct {
     host    string
+    alias    string
+    src_host  string
     group   string
 }
 
@@ -44,10 +46,12 @@ func readPoints(config *toml.Tree, con *client.Client) {
     for _, g := range groups.Keys() {
         sub := groups.Get(g).([]interface{})
         for _,h := range sub{
-            host, _ := h.(string)
+            host  := h.([]interface{})[0].(string)
+            alias := h.([]interface{})[1].(string)
             args = append(args, host)
             hostMap[host] = host_map{
                 host: host,
+                alias: alias,
                 group: g,
             }
         }
@@ -70,6 +74,7 @@ func readPoints(config *toml.Tree, con *client.Client) {
         if len(fields) > 1 {
             host := fields[0]
             group := hostMap[host].group
+            alias := hostMap[host].alias
             data := fields[4]
             dataSplitted := strings.FieldsFunc(data, slashSplitter)
             // Remove ,
@@ -83,7 +88,7 @@ func readPoints(config *toml.Tree, con *client.Client) {
                 min, avg, max = td[0], td[1], td[2]
             }
             log.Printf("Host:%s, group:%s, loss: %s, min: %s, avg: %s, max: %s", host, group, lossp, min, avg, max)
-            writePoints(config, con, host, group, sent, recv, lossp, min, avg, max)
+            writePoints(config, con, host, alias, group, sent, recv, lossp, min, avg, max)
         }
     }
     std := bufio.NewReader(stdout)
@@ -92,13 +97,16 @@ func readPoints(config *toml.Tree, con *client.Client) {
     log.Printf("stdout:%s", line)
 }
 
-func writePoints(config *toml.Tree, con *client.Client, host string, group string, sent string, recv string, lossp string, min string, avg string, max string) {
+func writePoints(config *toml.Tree, con *client.Client, host string, alias string, group string, sent string, recv string, lossp string, min string, avg string, max string) {
     db := config.Get("influxdb.db").(string)
+    src_host := config.Get("main.src_host").(string)
     loss, _ := strconv.Atoi(lossp)
     pts := make([]client.Point, 1)
     tags := map[string]string{}
     tags = map[string]string{
         "host": host,
+        "alias": alias,
+        "src_host": src_host,
         "group": group,
     }
     fields := map[string]interface{}{}

@@ -1,5 +1,6 @@
 [main]
 fping_location = "/usr/sbin/fping"
+src_host = "127.0.0.1"
 
 [influxdb]
 url = "http://10.20.30.40:8086"
@@ -10,9 +11,9 @@ pass = "pong"
 
 [hosts]
 hosts_group = [
-    "127.0.0.1",
-    "8.8.8.8",
+    ["127.0.0.1", "localhost"]
+    ["8.8.8.8", "aliasmy"]
 ]
 another_group = [
-    "8.8.4.4",
+    ["8.8.4.4", "other"]
 ]
