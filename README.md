@@ -44,8 +44,7 @@ Distributed under terms and conditions of MIT (only).
 Recent Developers:
     
 * Anton Baranov &lt;cryol@cryol.kiev.ua&gt;
-* Tor Hveem https://github.com/torhve
+* Marcus van Dam https://github.com/m4rcu5
 
 Idea and initial release:
-
-* Marcus van Dam https://github.com/m4rcu5
+* Tor Hveem https://github.com/torhve
