@@ -1,19 +1,25 @@
 [main]
-fping_location = "/usr/sbin/fping"
-src_host = "127.0.0.1"
+fping_location  = "/usr/sbin/fping"
+src_host        = "127.0.0.1"
+
+[alerts]
+loss_limit      = 10
+provider        = "zabbix_sender"
+dst             = "127.0.0.1:10051"
+key             = "infping.alerts"
 
 [influxdb]
-url = "http://10.20.30.40:8086"
-db = "ping"
-measurement = "ping"
-user = "ping"
-pass = "pong"
+url             = "http://10.20.30.40:8086"
+db              = "ping"
+measurement     = "ping"
+user            = "ping"
+pass            = "pong"
 
 [hosts]
-hosts_group = [
-    ["127.0.0.1", "localhost"]
-    ["8.8.8.8", "aliasmy"]
+hosts_group     = [
+    ["127.0.0.1",   "localhost"]
+    ["8.8.8.8",     "aliasmy"]
 ]
-another_group = [
-    ["8.8.4.4", "other"]
+another_group   = [
+    ["8.8.4.4",     "other"]
 ]
