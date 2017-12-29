@@ -1,6 +1,6 @@
 # Build
 Comming soon
-[![Build Status](https://travis-ci.org/LanetNetwork/infping.svg?branch=v0.0.x)](https://travis-ci.org/LanetNetwork/infping)
+[![Build Status](https://travis-ci.org/LanetNetwork/infping.svg?branch=master)](https://travis-ci.org/LanetNetwork/infping)
 
 infping
 ===========
