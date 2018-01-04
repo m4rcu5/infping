@@ -8,8 +8,7 @@ Description
 Parse fping output, store result in influxdb.
 
 Render graphs from influxdb in "SmokePing Style"
-Grafana Dashboard: https://grafana.com/dashboards/3429
-
+![alt text](https://raw.githubusercontent.com/LanetNetwork/infping/master/grafana.png)
 Building
 --------
 
