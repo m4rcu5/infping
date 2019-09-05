@@ -1,7 +1,7 @@
 package main
 
 import (
-    "github.com/influxdata/influxdb/client"
+    "github.com/influxdata/influxdb1-client"
     "github.com/AlekSi/zabbix-sender"
     "github.com/pelletier/go-toml"
     "fmt"
@@ -74,7 +74,7 @@ func readPoints(config *toml.Tree, con *client.Client) {
         fields := strings.Fields(text)
         // Ignore timestamp
         if len(fields) > 1 {
-            host := fields[0]
+            host := fields[0]	
             group := hostMap[host].group
             alias := hostMap[host].alias
             data := fields[4]
@@ -104,19 +104,23 @@ func writePoints(config *toml.Tree, con *client.Client, host string, alias strin
     src_host := config.Get("main.src_host").(string)
     loss, _ := strconv.Atoi(lossp)
     limit_loss, _ := config.Get("alerts.loss_limit").(int)
-    alert_provider := config.Get("alerts.provider").(string)
-    alert_dst := config.Get("alerts.dst").(string)
+    alert_server := config.Get("alerts.server").(string)
+    alert_host := config.Get("alerts.host").(string)
     alert_key := config.Get("alerts.key").(string)
     alert_msg := fmt.Sprintf("LOSS: [%s][%s] - %d", alias, host, loss)
-    if loss > limit_loss {
-        if alert_provider == "zabbix_sender"{
-            alert_data := map[string]interface{}{alert_key: alert_msg}
-            di := zabbix_sender.MakeDataItems(alert_data, src_host)
-            addr, _ := net.ResolveTCPAddr("tcp", alert_dst)
-            res, _ := zabbix_sender.Send(addr, di)
-            log.Print(res)
+    alert_groups := config.Get("alerts.groups").([]interface {})
+    for _,h := range alert_groups{
+        if h == group {
+            if loss > limit_loss {
+                alert_data := map[string]interface{}{alert_key: alert_msg}
+                di := zabbix_sender.MakeDataItems(alert_data, alert_host)
+                addr, _ := net.ResolveTCPAddr("tcp", alert_server)
+                res, _ := zabbix_sender.Send(addr, di)
+                log.Print(res)
+            }
         }
     }
+
     pts := make([]client.Point, 1)
     tags := map[string]string{}
     tags = map[string]string{
