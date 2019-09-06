@@ -1,12 +1,11 @@
-// infping.go copyright Tor Hveem
-// License: MIT
-
 package main
 
 import (
-    "github.com/influxdata/influxdb/client"
+    "github.com/influxdata/influxdb1-client"
+    "github.com/AlekSi/zabbix-sender"
     "github.com/pelletier/go-toml"
     "fmt"
+    "net"
     "log"
     "os"
     "bufio"
@@ -34,15 +33,34 @@ func slashSplitter(c rune) bool {
     return c == '/'
 }
 
+type host_map struct {
+    host    string
+    alias    string
+    src_host  string
+    group   string
+}
+
+var hostMap = map[string]host_map{}
+
 func readPoints(config *toml.Tree, con *client.Client) {
     args := []string{"-B 1", "-D", "-r0", "-O 0", "-Q 10", "-p 1000", "-l"}
-    hosts := config.Get("hosts.hosts").([]interface{})
-    for _, v := range hosts {
-        host, _ := v.(string)
-        args = append(args, host)
+    groups := config.Get("hosts").(*toml.Tree)
+    for _, g := range groups.Keys() {
+        sub := groups.Get(g).([]interface{})
+        for _,h := range sub{
+            host  := h.([]interface{})[0].(string)
+            alias := h.([]interface{})[1].(string)
+            args = append(args, host)
+            hostMap[host] = host_map{
+                host: host,
+                alias: alias,
+                group: g,
+            }
+        }
+        log.Printf("Going to ping the group:%s following hosts: %q", g, sub)
     }
-    log.Printf("Going to ping the following hosts: %q", hosts)
-    cmd := exec.Command("/usr/bin/fping", args...)
+    fping := config.Get("main.fping_location").(string)
+    cmd := exec.Command(fping, args...)
     stdout, err := cmd.StdoutPipe()
     herr(err)
     stderr, err := cmd.StderrPipe()
@@ -56,7 +74,9 @@ func readPoints(config *toml.Tree, con *client.Client) {
         fields := strings.Fields(text)
         // Ignore timestamp
         if len(fields) > 1 {
-            host := fields[0]
+            host := fields[0]	
+            group := hostMap[host].group
+            alias := hostMap[host].alias
             data := fields[4]
             dataSplitted := strings.FieldsFunc(data, slashSplitter)
             // Remove ,
@@ -69,8 +89,8 @@ func readPoints(config *toml.Tree, con *client.Client) {
                 td := strings.FieldsFunc(times, slashSplitter)
                 min, avg, max = td[0], td[1], td[2]
             }
-            log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
-            writePoints(config, con, host, sent, recv, lossp, min, avg, max)
+            log.Printf("Host:%s, group:%s, loss: %s, min: %s, avg: %s, max: %s", host, group, lossp, min, avg, max)
+            writePoints(config, con, host, alias, group, sent, recv, lossp, min, avg, max)
         }
     }
     std := bufio.NewReader(stdout)
@@ -79,10 +99,36 @@ func readPoints(config *toml.Tree, con *client.Client) {
     log.Printf("stdout:%s", line)
 }
 
-func writePoints(config *toml.Tree, con *client.Client, host string, sent string, recv string, lossp string, min string, avg string, max string) {
+func writePoints(config *toml.Tree, con *client.Client, host string, alias string, group string, sent string, recv string, lossp string, min string, avg string, max string) {
     db := config.Get("influxdb.db").(string)
+    src_host := config.Get("main.src_host").(string)
     loss, _ := strconv.Atoi(lossp)
+    limit_loss, _ := config.Get("alerts.loss_limit").(int)
+    alert_server := config.Get("alerts.server").(string)
+    alert_host := config.Get("alerts.host").(string)
+    alert_key := config.Get("alerts.key").(string)
+    alert_msg := fmt.Sprintf("LOSS: [%s][%s] - %d", alias, host, loss)
+    alert_groups := config.Get("alerts.groups").([]interface {})
+    for _,h := range alert_groups{
+        if h == group {
+            if loss > limit_loss {
+                alert_data := map[string]interface{}{alert_key: alert_msg}
+                di := zabbix_sender.MakeDataItems(alert_data, alert_host)
+                addr, _ := net.ResolveTCPAddr("tcp", alert_server)
+                res, _ := zabbix_sender.Send(addr, di)
+                log.Print(res)
+            }
+        }
+    }
+
     pts := make([]client.Point, 1)
+    tags := map[string]string{}
+    tags = map[string]string{
+        "host": host,
+        "alias": alias,
+        "src_host": src_host,
+        "group": group,
+    }
     fields := map[string]interface{}{}
     if min != "" && avg != "" && max != "" {
         min, _ := strconv.ParseFloat(min, 64)
@@ -101,9 +147,7 @@ func writePoints(config *toml.Tree, con *client.Client, host string, sent string
     }
     pts[0] = client.Point{
         Measurement: config.Get("influxdb.measurement").(string),
-        Tags: map[string]string{
-            "host": host,
-        },
+        Tags: tags,
         Fields: fields,
         Time: time.Now(),
         Precision: "",
